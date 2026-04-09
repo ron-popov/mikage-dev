@@ -1,3 +1,11 @@
 build/*
 aes_keys.txt
 *.tracy
+
+CMakeCache.txt
+CMakeFiles/
+CMakeUserPresets.json
+**/CMakeCache.txt
+**/CMakeFiles/
+**/Makefile
+**/cmake_install.cmake
