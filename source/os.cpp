@@ -2039,17 +2039,18 @@ SVCFuture<Args...> MakeFuture(Args... args) {
     return std::make_tuple(args...);
 }
 
-SVCFuture<OS::Result> OS::SVCGetProcessList(Thread& source, VAddr process_count_out_addr, VAddr process_ids_arr_out_addr, int32_t process_id_max_count) {
+SVCFuture<OS::Result, int32_t> OS::SVCGetProcessList(Thread& source, VAddr process_count_out_addr, VAddr process_ids_arr_out_addr, int32_t process_id_max_count) {
+    // auto& mem = source.GetParentProcess().virtual_memory;
     auto& mem = source.GetParentProcess().interpreter_setup.mem;
     
-    int32_t total_process_count = thread.GetProcessHandleTable().table.size();
+    int32_t total_process_count = source.GetProcessHandleTable().table.size();
 
     source.GetLogger()->info("{}SVCGetProcessList: total_process_count={:#x}",
                                  ThreadPrinter{source}, total_process_count);
 
-    Memory::WriteLegacy<int32_t>(mem, process_count_out_addr, total_process_count);
+    // Memory::WriteLegacy<uint32_t>(mem, process_count_out_addr, total_process_count);
 
-    return MakeFuture(RESULT_OK);
+    return MakeFuture(RESULT_OK, total_process_count);
     
 }
 

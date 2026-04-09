@@ -1668,7 +1668,7 @@ public:
      */
     SVCFuture<OS::Result,uint32_t> SVCControlMemory(Thread& source, uint32_t addr0, uint32_t addr1, uint32_t size, uint32_t operation, uint32_t permissions);
 
-    SVCFuture<OS::Result> OS::SVCGetProcessList(Thread& source, VAddr process_count_out_addr, VAddr process_ids_arr_out_addr, int32_t process_id_max_count) {
+    SVCFuture<OS::Result,int32_t> SVCGetProcessList(Thread& source, VAddr process_count_out_addr, VAddr process_ids_arr_out_addr, int32_t process_id_max_count);
 
     SVCFuture<OS::Result,uint32_t> SVCControlProcessMemory(Thread& source, Process& process, uint32_t addr0, uint32_t addr1, uint32_t size, uint32_t operation, MemoryPermissions);
 
