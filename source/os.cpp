@@ -2039,6 +2039,20 @@ SVCFuture<Args...> MakeFuture(Args... args) {
     return std::make_tuple(args...);
 }
 
+SVCFuture<OS::Result> OS::SVCGetProcessList(Thread& source, VAddr process_count_out_addr, VAddr process_ids_arr_out_addr, int32_t process_id_max_count) {
+    auto& mem = source.GetParentProcess().interpreter_setup.mem;
+    
+    int32_t total_process_count = thread.GetProcessHandleTable().table.size();
+
+    source.GetLogger()->info("{}SVCGetProcessList: total_process_count={:#x}",
+                                 ThreadPrinter{source}, total_process_count);
+
+    Memory::WriteLegacy<int32_t>(mem, process_count_out_addr, total_process_count);
+
+    return MakeFuture(RESULT_OK);
+    
+}
+
 SVCFuture<OS::Result,uint32_t> OS::SVCControlProcessMemory(Thread& source, Process& process, uint32_t addr0, uint32_t addr1, uint32_t size, uint32_t operation, MemoryPermissions permissions) {
     if (&source.GetParentProcess() != &process && (operation < 4 || operation > 6)) {
         throw Mikage::Exceptions::Invalid("Invalid memory control operation attempted across processes");
@@ -5229,6 +5243,20 @@ SVCCallbackType OS::SVCRaw(Thread& source, unsigned svc_id, Interpreter::Executi
     // Sets up FCRAM cutoff for the GPU
     case 0x59:
         return Encode(RESULT_OK);
+
+    case 0x65: // GetProcessList
+    {
+        uint32_t process_count_out_addr = input_regs.reg[0];
+        uint32_t process_ids_arr_out_addr = input_regs.reg[1];
+        uint32_t process_id_max_count = input_regs.reg[2];
+
+        source.GetLogger()->info("{}SVCGetProcessList: process_count_out_addr={:#010x}, process_ids_arr_out_addr={:#010x}, process_id_max_count={:#x}",
+                                 ThreadPrinter{source}, process_count_out_addr, process_ids_arr_out_addr, process_id_max_count);
+
+        return EncodeFuture(SVCGetProcessList(source, process_count_out_addr, process_ids_arr_out_addr, process_id_max_count));        
+
+        break;
+    }
 
     case 0x70: // ControlProcessMemory
     {
