@@ -5254,9 +5254,15 @@ SVCCallbackType OS::SVCRaw(Thread& source, unsigned svc_id, Interpreter::Executi
         source.GetLogger()->info("{}SVCGetProcessList: process_count_out_addr={:#010x}, process_ids_arr_out_addr={:#010x}, process_id_max_count={:#x}",
                                  ThreadPrinter{source}, process_count_out_addr, process_ids_arr_out_addr, process_id_max_count);
 
+        auto& calling_process = *source.GetProcessHandleTable().FindObject<Process>(Handle{0xffff8001});
+        // auto vm_mem = calling_process.virtual_memory;
+        calling_process.WriteMemory32(process_ids_arr_out_addr, 0x12341234);
+
+        // Memory::WriteLegacy<uint32_t>(vm_mem, configuration_memory + 0x8, 0x00008002);
+
         return EncodeFuture(SVCGetProcessList(source, process_count_out_addr, process_ids_arr_out_addr, process_id_max_count));        
 
-        break;
+        break; // TODO: Why do i need this here?
     }
 
     case 0x70: // ControlProcessMemory
