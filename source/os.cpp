@@ -5238,7 +5238,6 @@ SVCCallbackType OS::SVCRaw(Thread& source, unsigned svc_id, Interpreter::Executi
         source.GetLogger()->info("{}SVCGetProcessList: process_id_max_count={:#x}", ThreadPrinter{source}, process_id_max_count);
 
         auto& calling_process = *source.GetProcessHandleTable().FindObject<Process>(Handle{0xffff8001});
-        
         uint32_t process_index = 0;
 
         for (auto& [_, obj] : process_handles) {
@@ -5251,47 +5250,17 @@ SVCCallbackType OS::SVCRaw(Thread& source, unsigned svc_id, Interpreter::Executi
             if (!process) continue;
 
             // source.GetLogger()->info("{}SVCGetProcessList: process in process handle table : 0x{:#} {}", ThreadPrinter{source}, process->GetId(), process->GetName());
-
             calling_process.WriteMemory32(process_ids_arr_out_addr + (process_index * sizeof(uint32_t)), process->GetId());
 
             process_index += 1;
         }
 
-        // for ( auto it = source.GetProcessHandleTable().table.begin(); it != source.GetProcessHandleTable().table.end(); ++it ) {
-        //     if (process_index >= process_id_max_count) {
-        //         break;
-        //     }
-            
-
-        //     // process.GetId()
-        //     // calling_process.WriteMemory32(process_ids_arr_out_addr + process_index, it->first.value);
-        //     auto obj = it->second;
-        //     // if (obj.isA<HLE::OS::Process>()) {
-        //     source.GetLogger()->info("{}SVCGetProcessList: found object in process handle table : {}", obj->GetName());
-        //     // HLE::OS::Process process = (HLE::OS::Process)obj;
-        //     // calling_process.WriteMemory32(process_ids_arr_out_addr + process_index, process.GetId());
-
-        //     // break;s
-        //     // }
-            
-        //     // process_index += 1;
-        // }
-
-        // for(int i = 0; i < process_id_max_count) {
-        //     // auto& process = *source.GetProcessHandleTable().FindObject<Process>(Handle{input_regs.reg[1]});
-        //     auto& process = *source.GetProcessHandleTable().table.
-        // }
-        // calling_process.WriteMemory32(process_ids_arr_out_addr, 0x12341234);
-
-        // Memory::WriteLegacy<uint32_t>(vm_mem, configuration_memory + 0x8, 0x00008002);
-    
+        
         int32_t total_process_count = process_handles.size();
         source.GetLogger()->info("{}SVCGetProcessList: total_process_count={:#x}",
                                     ThreadPrinter{source}, total_process_count);
 
         return EncodeFuture(MakeFuture(RESULT_OK, total_process_count));
-
-        break; // TODO: Why do i need this here?
     }
 
     case 0x70: // ControlProcessMemory
