@@ -2039,6 +2039,33 @@ SVCFuture<Args...> MakeFuture(Args... args) {
     return std::make_tuple(args...);
 }
 
+SVCFuture<OS::Result,int32_t> OS::SVCGetProcessList(Thread& source, uint32_t max_process_count, VAddr out_pid_list_start_addr) {
+    auto& calling_process = *source.GetProcessHandleTable().FindObject<Process>(Handle{0xffff8001});
+    uint32_t process_index = 0;
+
+    for (auto& [_, obj] : process_handles) {
+        if (process_index >= max_process_count) {
+            source.GetLogger()->info("{}SVCGetProcessList: not enough space in user allocated buffer for all PIDs", ThreadPrinter{source});
+            break;
+        }
+
+        auto process = std::dynamic_pointer_cast<Process>(obj);
+        if (!process) continue;
+
+        // source.GetLogger()->info("{}SVCGetProcessList: process in process handle table : 0x{:#} {}", ThreadPrinter{source}, process->GetId(), process->GetName());
+        calling_process.WriteMemory32(out_pid_list_start_addr + (process_index * sizeof(uint32_t)), process->GetId());
+
+        process_index += 1;
+    }
+
+    
+    int32_t total_process_count = process_handles.size();
+    source.GetLogger()->info("{}SVCGetProcessList: total_process_count={:#x}",
+                                ThreadPrinter{source}, total_process_count);
+
+    return MakeFuture(RESULT_OK, total_process_count);
+}
+
 SVCFuture<OS::Result,uint32_t> OS::SVCControlProcessMemory(Thread& source, Process& process, uint32_t addr0, uint32_t addr1, uint32_t size, uint32_t operation, MemoryPermissions permissions) {
     if (&source.GetParentProcess() != &process && (operation < 4 || operation > 6)) {
         throw Mikage::Exceptions::Invalid("Invalid memory control operation attempted across processes");
@@ -5237,30 +5264,7 @@ SVCCallbackType OS::SVCRaw(Thread& source, unsigned svc_id, Interpreter::Executi
 
         source.GetLogger()->info("{}SVCGetProcessList: process_id_max_count={:#x}", ThreadPrinter{source}, process_id_max_count);
 
-        auto& calling_process = *source.GetProcessHandleTable().FindObject<Process>(Handle{0xffff8001});
-        uint32_t process_index = 0;
-
-        for (auto& [_, obj] : process_handles) {
-            if (process_index >= process_id_max_count) {
-                source.GetLogger()->info("{}SVCGetProcessList: not enough space in user allocated buffer for all PIDs", ThreadPrinter{source});
-                break;
-            }
-
-            auto process = std::dynamic_pointer_cast<Process>(obj);
-            if (!process) continue;
-
-            // source.GetLogger()->info("{}SVCGetProcessList: process in process handle table : 0x{:#} {}", ThreadPrinter{source}, process->GetId(), process->GetName());
-            calling_process.WriteMemory32(process_ids_arr_out_addr + (process_index * sizeof(uint32_t)), process->GetId());
-
-            process_index += 1;
-        }
-
-        
-        int32_t total_process_count = process_handles.size();
-        source.GetLogger()->info("{}SVCGetProcessList: total_process_count={:#x}",
-                                    ThreadPrinter{source}, total_process_count);
-
-        return EncodeFuture(MakeFuture(RESULT_OK, total_process_count));
+        return EncodeFuture(SVCGetProcessList(source, process_id_max_count, process_ids_arr_out_addr));
     }
 
     case 0x70: // ControlProcessMemory
