@@ -2039,21 +2039,6 @@ SVCFuture<Args...> MakeFuture(Args... args) {
     return std::make_tuple(args...);
 }
 
-SVCFuture<OS::Result, int32_t> OS::SVCGetProcessList(Thread& source, VAddr process_count_out_addr, VAddr process_ids_arr_out_addr, int32_t process_id_max_count) {
-    // auto& mem = source.GetParentProcess().virtual_memory;
-    auto& mem = source.GetParentProcess().interpreter_setup.mem;
-    
-    int32_t total_process_count = source.GetProcessHandleTable().table.size();
-
-    source.GetLogger()->info("{}SVCGetProcessList: total_process_count={:#x}",
-                                 ThreadPrinter{source}, total_process_count);
-
-    // Memory::WriteLegacy<uint32_t>(mem, process_count_out_addr, total_process_count);
-
-    return MakeFuture(RESULT_OK, total_process_count);
-    
-}
-
 SVCFuture<OS::Result,uint32_t> OS::SVCControlProcessMemory(Thread& source, Process& process, uint32_t addr0, uint32_t addr1, uint32_t size, uint32_t operation, MemoryPermissions permissions) {
     if (&source.GetParentProcess() != &process && (operation < 4 || operation > 6)) {
         throw Mikage::Exceptions::Invalid("Invalid memory control operation attempted across processes");
@@ -5247,20 +5232,64 @@ SVCCallbackType OS::SVCRaw(Thread& source, unsigned svc_id, Interpreter::Executi
 
     case 0x65: // GetProcessList
     {
-        uint32_t process_count_out_addr = input_regs.reg[0];
         uint32_t process_ids_arr_out_addr = input_regs.reg[1];
         uint32_t process_id_max_count = input_regs.reg[2];
 
-        source.GetLogger()->info("{}SVCGetProcessList: process_count_out_addr={:#010x}, process_ids_arr_out_addr={:#010x}, process_id_max_count={:#x}",
-                                 ThreadPrinter{source}, process_count_out_addr, process_ids_arr_out_addr, process_id_max_count);
+        source.GetLogger()->info("{}SVCGetProcessList: process_id_max_count={:#x}", ThreadPrinter{source}, process_id_max_count);
 
         auto& calling_process = *source.GetProcessHandleTable().FindObject<Process>(Handle{0xffff8001});
-        // auto vm_mem = calling_process.virtual_memory;
-        calling_process.WriteMemory32(process_ids_arr_out_addr, 0x12341234);
+        
+        uint32_t process_index = 0;
+
+        for (auto& [_, obj] : process_handles) {
+            if (process_index >= process_id_max_count) {
+                source.GetLogger()->info("{}SVCGetProcessList: not enough space in user allocated buffer for all PIDs", ThreadPrinter{source});
+                break;
+            }
+
+            auto process = std::dynamic_pointer_cast<Process>(obj);
+            if (!process) continue;
+
+            // source.GetLogger()->info("{}SVCGetProcessList: process in process handle table : 0x{:#} {}", ThreadPrinter{source}, process->GetId(), process->GetName());
+
+            calling_process.WriteMemory32(process_ids_arr_out_addr + (process_index * sizeof(uint32_t)), process->GetId());
+
+            process_index += 1;
+        }
+
+        // for ( auto it = source.GetProcessHandleTable().table.begin(); it != source.GetProcessHandleTable().table.end(); ++it ) {
+        //     if (process_index >= process_id_max_count) {
+        //         break;
+        //     }
+            
+
+        //     // process.GetId()
+        //     // calling_process.WriteMemory32(process_ids_arr_out_addr + process_index, it->first.value);
+        //     auto obj = it->second;
+        //     // if (obj.isA<HLE::OS::Process>()) {
+        //     source.GetLogger()->info("{}SVCGetProcessList: found object in process handle table : {}", obj->GetName());
+        //     // HLE::OS::Process process = (HLE::OS::Process)obj;
+        //     // calling_process.WriteMemory32(process_ids_arr_out_addr + process_index, process.GetId());
+
+        //     // break;s
+        //     // }
+            
+        //     // process_index += 1;
+        // }
+
+        // for(int i = 0; i < process_id_max_count) {
+        //     // auto& process = *source.GetProcessHandleTable().FindObject<Process>(Handle{input_regs.reg[1]});
+        //     auto& process = *source.GetProcessHandleTable().table.
+        // }
+        // calling_process.WriteMemory32(process_ids_arr_out_addr, 0x12341234);
 
         // Memory::WriteLegacy<uint32_t>(vm_mem, configuration_memory + 0x8, 0x00008002);
+    
+        int32_t total_process_count = process_handles.size();
+        source.GetLogger()->info("{}SVCGetProcessList: total_process_count={:#x}",
+                                    ThreadPrinter{source}, total_process_count);
 
-        return EncodeFuture(SVCGetProcessList(source, process_count_out_addr, process_ids_arr_out_addr, process_id_max_count));        
+        return EncodeFuture(MakeFuture(RESULT_OK, total_process_count));
 
         break; // TODO: Why do i need this here?
     }
