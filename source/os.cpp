@@ -2039,7 +2039,7 @@ SVCFuture<Args...> MakeFuture(Args... args) {
     return std::make_tuple(args...);
 }
 
-SVCFuture<OS::Result,int32_t> OS::SVCGetProcessList(Thread& source, uint32_t max_process_count, VAddr out_pid_list_start_addr) {
+SVCFuture<OS::Result, int32_t> OS::SVCGetProcessList(Thread& source, uint32_t max_process_count, VAddr out_pid_list_start_addr) {
     int32_t total_process_count = process_handles.size();
     source.GetLogger()->info("{}SVCGetProcessList: total_process_count={:#x}",
                                 ThreadPrinter{source}, total_process_count);
