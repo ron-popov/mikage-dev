@@ -2039,7 +2039,7 @@ SVCFuture<Args...> MakeFuture(Args... args) {
     return std::make_tuple(args...);
 }
 
-SVCFuture<OS::Result,int32_t> OS::SVCGetProcessList(Thread& source, uint32_t max_process_count, VAddr out_pid_list_start_addr) {
+SVCFuture<OS::Result, int32_t> OS::SVCGetProcessList(Thread& source, uint32_t max_process_count, VAddr out_pid_list_start_addr) {
     auto& calling_process = *source.GetProcessHandleTable().FindObject<Process>(Handle{0xffff8001});
     uint32_t process_index = 0;
 
