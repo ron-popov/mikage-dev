@@ -4970,11 +4970,17 @@ SVCCallbackType OS::SVCRaw(Thread& source, unsigned svc_id, Interpreter::Executi
             RescheduleImmediately(source.GetPointer());
             return Encode(RESULT_OK, value, 0 /* Ignored (?) */);
         } else if (input_regs.reg[2] == 0x10000) {
-            // the process name
+            // return process name, on real system it always 8 chars at most
+            // in mikage process name can be more than 8 chars, in that case it will be truncated
+            
             std::string proc_name = process.GetName().substr(0, 8); // can only return up to 8 chars
             source.GetLogger()->warn("{}: GetProcessInfo with info type 0x10000. Returning {}", ThreadPrinter{source}, proc_name);
-            
-            return Encode(RESULT_OK, 0x61736f72, 0x616e696c);
+
+            int32_t proc_name_int_upper, proc_name_int_lower = 0;
+            std::memcpy(&proc_name_int_upper, proc_name.c_str(), 4);
+            std::memcpy(&proc_name_int_lower, proc_name.c_str() + 4, 4);
+
+            return Encode(RESULT_OK, proc_name_int_upper, proc_name_int_lower);
         } else if (input_regs.reg[2] == 0x10001) {
             // the titleid correlated with the process
             return Encode(RESULT_OK, 0, 0);
