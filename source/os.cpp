@@ -4969,6 +4969,15 @@ SVCCallbackType OS::SVCRaw(Thread& source, unsigned svc_id, Interpreter::Executi
             auto value = Memory::FCRAM::start - process.linear_base_addr; // FCRAM physical address minus LINEAR virtual base address;
             RescheduleImmediately(source.GetPointer());
             return Encode(RESULT_OK, value, 0 /* Ignored (?) */);
+        } else if (input_regs.reg[2] == 0x10000) {
+            // the process name
+            std::string proc_name = process.GetName().substr(0, 8); // can only return up to 8 chars
+            source.GetLogger()->warn("{}: GetProcessInfo with info type 0x10000. Returning {}", ThreadPrinter{source}, proc_name);
+            
+            return Encode(RESULT_OK, 0x61736f72, 0x616e696c);
+        } else if (input_regs.reg[2] == 0x10001) {
+            // the titleid correlated with the process
+            return Encode(RESULT_OK, 0, 0);
         } else {
             throw std::runtime_error(fmt::format("Unsupported GetProcessInfo query {:#x}", input_regs.reg[2]));
         }
