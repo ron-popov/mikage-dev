@@ -2044,16 +2044,15 @@ SVCFuture<OS::Result, int32_t> OS::SVCGetProcessList(Thread& source, uint32_t ma
     source.GetLogger()->info("{}SVCGetProcessList: total_process_count={:#x}",
                                 ThreadPrinter{source}, total_process_count);
     
+    if (total_process_count > max_process_count) {
+        source.GetLogger()->warn("{}SVCGetProcessList: not enough space in user allocated buffer for all PIDs", ThreadPrinter{source});
+        throw Mikage::Exceptions::NotImplemented("SVCGetProcessList: not enough space in user allocated buffer for all PIDs");
+    }
+
     auto& calling_process = source.GetParentProcess();
     uint32_t process_index = 0;
 
     for (auto& [_, process] : process_handles) {
-        if (process_index >= max_process_count) {
-            throw Mikage::Exceptions::NotImplemented("SVCGetProcessList: not enough space in user allocated buffer for all PIDs");
-            source.GetLogger()->warn("{}SVCGetProcessList: not enough space in user allocated buffer for all PIDs", ThreadPrinter{source});
-            break;
-        }
-
         calling_process.WriteMemory32(out_pid_list_start_addr, process->GetId());
         out_pid_list_start_addr += sizeof(uint32_t);
     }
