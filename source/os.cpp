@@ -2039,6 +2039,27 @@ SVCFuture<Args...> MakeFuture(Args... args) {
     return std::make_tuple(args...);
 }
 
+SVCFuture<OS::Result, int32_t> OS::SVCGetProcessList(Thread& source, uint32_t max_process_count, VAddr out_pid_list_start_addr) {
+    int32_t total_process_count = process_handles.size();
+    source.GetLogger()->info("{}SVCGetProcessList: total_process_count={:#x}",
+                                ThreadPrinter{source}, total_process_count);
+    
+    if (total_process_count > max_process_count) {
+        source.GetLogger()->warn("{}SVCGetProcessList: not enough space in user allocated buffer for all PIDs", ThreadPrinter{source});
+        throw Mikage::Exceptions::NotImplemented("SVCGetProcessList: not enough space in user allocated buffer for all PIDs");
+    }
+
+    auto& calling_process = source.GetParentProcess();
+    uint32_t process_index = 0;
+
+    for (auto& [_, process] : process_handles) {
+        calling_process.WriteMemory32(out_pid_list_start_addr, process->GetId());
+        out_pid_list_start_addr += sizeof(uint32_t);
+    }
+
+    return MakeFuture(RESULT_OK, total_process_count);
+}
+
 SVCFuture<OS::Result,uint32_t> OS::SVCControlProcessMemory(Thread& source, Process& process, uint32_t addr0, uint32_t addr1, uint32_t size, uint32_t operation, MemoryPermissions permissions) {
     if (&source.GetParentProcess() != &process && (operation < 4 || operation > 6)) {
         throw Mikage::Exceptions::Invalid("Invalid memory control operation attempted across processes");
@@ -4948,6 +4969,21 @@ SVCCallbackType OS::SVCRaw(Thread& source, unsigned svc_id, Interpreter::Executi
             auto value = Memory::FCRAM::start - process.linear_base_addr; // FCRAM physical address minus LINEAR virtual base address;
             RescheduleImmediately(source.GetPointer());
             return Encode(RESULT_OK, value, 0 /* Ignored (?) */);
+        } else if (input_regs.reg[2] == 0x10000) {
+            // return process name, on real system it always 8 chars at most
+            // in mikage process name can be more than 8 chars, in that case it will be truncated
+            
+            std::string proc_name = process.GetName().substr(0, 8); // can only return up to 8 chars
+            source.GetLogger()->warn("{}: GetProcessInfo with info type 0x10000. Returning {}", ThreadPrinter{source}, proc_name);
+
+            int32_t proc_name_int_upper, proc_name_int_lower = 0;
+            std::memcpy(&proc_name_int_upper, proc_name.c_str(), 4);
+            std::memcpy(&proc_name_int_lower, proc_name.c_str() + 4, 4);
+
+            return Encode(RESULT_OK, proc_name_int_upper, proc_name_int_lower);
+        } else if (input_regs.reg[2] == 0x10001) {
+            // the titleid correlated with the process
+            return Encode(RESULT_OK, 0, 0);
         } else {
             throw std::runtime_error(fmt::format("Unsupported GetProcessInfo query {:#x}", input_regs.reg[2]));
         }
@@ -5229,6 +5265,14 @@ SVCCallbackType OS::SVCRaw(Thread& source, unsigned svc_id, Interpreter::Executi
     // Sets up FCRAM cutoff for the GPU
     case 0x59:
         return Encode(RESULT_OK);
+
+    case 0x65: // GetProcessList
+    {
+        uint32_t process_ids_arr_out_addr = input_regs.reg[1];
+        uint32_t process_id_max_count = input_regs.reg[2];
+
+        return EncodeFuture(SVCGetProcessList(source, process_id_max_count, process_ids_arr_out_addr));
+    }
 
     case 0x70: // ControlProcessMemory
     {

@@ -1293,7 +1293,7 @@ void Inject3DSXFrom(std::istream& stream, CIA::NCCH& inject_target) {
 }
 
 /// TODO: Get rid of the NCCH argument, which we currently need as a template
-void Generate3DSX(std::istream& stream, CIA::NCCH& inject_target) {
+void Generate3DSX(std::istream& stream, CIA::NCCH& inject_target, std::array<unsigned char, 8> app_name) {
     Dot3DSX ret;
 
     ret.header = FileFormat::Load<FileFormat::Dot3DSX::Header>(stream);
@@ -1333,7 +1333,7 @@ void Generate3DSX(std::istream& stream, CIA::NCCH& inject_target) {
     uint32_t ro_vaddr = text_vaddr + (text_numpages << 12);
     uint32_t data_vaddr = ro_vaddr + (ro_numpages << 12);
 
-    inject_target.exheader.application_title = std::array<unsigned char, 8>{};
+    inject_target.exheader.application_title = app_name;
     inject_target.exheader.unknown = {};
     inject_target.exheader.flags = {};//inject_target.exheader.flags.compress_exefs_code().Set(0);
     inject_target.exheader.remaster_version = {};
@@ -1445,6 +1445,7 @@ void validate(boost::any& v,
 int main(int argc, char* argv[]) {
     std::string in_filename;
     std::string in_3dsx_filename;
+    std::string title_name;
 
     // Use a set of default dependencies when the caller does not specify any
     std::vector<HexUint64> exheader_dependencies = {
@@ -1470,6 +1471,7 @@ int main(int argc, char* argv[]) {
             ("template-cia", bpo::value<std::string>(&in_filename), "Path to CIA file to use to get certificate signatures")
             ("input,i", bpo::value<std::string>(&in_3dsx_filename)->required(), "Path to input 3DSX file")
             ("title-id", bpo::value<HexUint64>(&alt_titleid)->required(), "Title ID to use for the output file")
+            ("title-name", bpo::value<std::string>(&title_name), "Name to put in the appname field of the ExHeader")
             ("dep", bpo::value<std::vector<HexUint64>>(&exheader_dependencies)->composing(), "Add ExHeader dependency")
             ("gen-ncch", bpo::bool_switch(&generate_ncch)->default_value(false), "Generate NCCH")
             ("gen-cia", bpo::bool_switch(&generate_cia)->default_value(false), "Generate CIA")
@@ -1489,8 +1491,12 @@ int main(int argc, char* argv[]) {
                 std::cerr << "Must specify --template-cia when generating a CIA" << std::endl;
                 return 1;
             }
-
             bpo::notify(var_map);
+
+            if (title_name.length() > 8) {
+                std::cerr << "Title Name cannot be more than 8 characters" << std::endl;
+                return 1;
+            }
         } catch (bpo::error error) {
             std::cout << desc << std::endl;
             return 1;
@@ -1586,9 +1592,15 @@ int main(int argc, char* argv[]) {
         ncch.exheader.aci_limits.flags = ncch.exheader.aci_limits.flags.ideal_processor()(1).priority()(0x18);
 
         {
+            // std::vector<unsigned char>(title_name.data(), title_name.data() + title_name.length() + 1);
+            // std::array<unsigned char, 8> app_name = std::array<unsigned char, 8>(title_name);
+            std::array<unsigned char, 8> app_name = {};  // zero-initialized
+            std::memcpy(app_name.data(), title_name.data(), std::min(title_name.size(), app_name.size()));
+            // return result;
+
             std::ifstream ifile(in_3dsx_filename, std::ios_base::binary);
             ifile.exceptions(std::ofstream::badbit | std::ofstream::failbit | std::ofstream::eofbit);
-            Generate3DSX(ifile, ncch);
+            Generate3DSX(ifile, ncch, app_name);
         }
 
         ncch.header = FileFormat::NCCHHeader{};

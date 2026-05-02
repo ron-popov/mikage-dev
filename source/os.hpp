@@ -1668,6 +1668,8 @@ public:
      */
     SVCFuture<OS::Result,uint32_t> SVCControlMemory(Thread& source, uint32_t addr0, uint32_t addr1, uint32_t size, uint32_t operation, uint32_t permissions);
 
+    SVCFuture<OS::Result,int32_t> SVCGetProcessList(Thread& source, uint32_t max_process_count, VAddr out_pid_list_start_addr);
+
     SVCFuture<OS::Result,uint32_t> SVCControlProcessMemory(Thread& source, Process& process, uint32_t addr0, uint32_t addr1, uint32_t size, uint32_t operation, MemoryPermissions);
 
     SVCFuture<OS::Result,HandleTable::Entry<Thread>> SVCCreateThread(Thread& source, uint32_t entry, uint32_t arg, uint32_t stack_top, uint32_t priority, uint32_t processor_id);
