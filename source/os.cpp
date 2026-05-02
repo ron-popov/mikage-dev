@@ -2049,6 +2049,7 @@ SVCFuture<OS::Result, int32_t> OS::SVCGetProcessList(Thread& source, uint32_t ma
 
     for (auto& [_, process] : process_handles) {
         if (process_index >= max_process_count) {
+            throw Mikage::Exceptions::NotImplemented("SVCGetProcessList: not enough space in user allocated buffer for all PIDs");
             source.GetLogger()->warn("{}SVCGetProcessList: not enough space in user allocated buffer for all PIDs", ThreadPrinter{source});
             break;
         }
