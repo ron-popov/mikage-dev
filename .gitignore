@@ -1,3 +1,7 @@
 build/*
 aes_keys.txt
 *.tracy
+.vscode
+CMakeCache.txt
+CMakeFiles
+CMakeUserPresets.json
